@@ -8,7 +8,7 @@ abstract class Worker(manager: ActorRef) extends Actor{
 
 }
 
-class GossipWorker(manager: ActorRef, numMsgsInit: Int) extends Worker(man: ActorRef) {
+class GossipWorker(manager: ActorRef, numMsgsInit: Int) extends Worker(manager: ActorRef) {
 
   var numMsgsTillTerm = numMsgsInit
 
