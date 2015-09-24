@@ -6,4 +6,5 @@ case class Rumor() extends Msg
 case class Term() extends Msg
 case class Start() extends Msg
 case class AddNeighbor(neighbor: ActorRef) extends Msg
+case class PushMsg() extends Msg
 
