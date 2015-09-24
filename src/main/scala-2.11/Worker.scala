@@ -7,10 +7,6 @@ abstract class Worker(man: ActorRef) extends Actor{
   val neighbors: ArrayBuffer[ActorRef] = new ArrayBuffer()
   val manager: ActorRef = man
 
-  def addNeighbor(neighbor: ActorRef){
-    neighbors += neighbor
-  }
-
 }
 
 class GossipWorker(man: ActorRef, numMsgsInit: Int) extends Worker(man: ActorRef) {
@@ -19,18 +15,18 @@ class GossipWorker(man: ActorRef, numMsgsInit: Int) extends Worker(man: ActorRef
 
   def receive = {
 
+    case AddNeighbor(neighbor: ActorRef) => {
+      neighbors += neighbor
+    }
+
     case Rumor() => {
       numMsgsTillTerm = numMsgsTillTerm - 1
-      if(numMsgsTillTerm == 0) {
+      if (numMsgsTillTerm == 0) {
         manager ! Term()
       }
       else {
         neighbors(RNG.getRandNum(neighbors.length)) ! new Rumor()
       }
-    }
-
-    case Start() => {
-      neighbors(RNG.getRandNum(neighbors.length)) ! new Rumor()
     }
 
   }

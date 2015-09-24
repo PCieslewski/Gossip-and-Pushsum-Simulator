@@ -1,16 +1,45 @@
-import akka.actor.Actor
+import akka.actor.{Props, ActorSystem, ActorRef, Actor}
 
-abstract class Topology(numWorkers: Int, alg: String) {
-  def start()
+abstract class Topology(numWorkers: Int, man: ActorRef, alg: String) {
+
+  val defaultNumMsgs: Int = 1000
+  val defaultW: Double = 1.0
+  val defaultS: Double = 1.0
+  val topSystem = ActorSystem("TopSystem")
+
+  var workers: Array[ActorRef]
 }
 
-class Line(numWorkers: Int, alg: String) extends Topology(numWorkers: Int, alg: String) {
-  val workers = new Array[Actor](numWorkers)
+class Line(numWorkers: Int, man: ActorRef, alg: String) extends Topology(numWorkers: Int, man: ActorRef, alg: String) {
 
-  if(alg.equals("Gossip")) {
+  var workers = new Array[ActorRef](numWorkers)
+
+  for (i <- workers.indices) {
+
+    if(alg.equals("Gossip")) {
+      workers(i) = topSystem.actorOf(Props(new GossipWorker(man, defaultNumMsgs)), name = "Worker"+i.toString)
+    }
+    else{
+      //workers(i) = new GossipWorker(man, defaultNumMsgs)
+    }
 
   }
-  else{
+
+  for (i <- workers.indices) {
+
+    try {
+      workers(i) ! new AddNeighbor(workers(i-1))
+    }
+    catch{
+      case oob: ArrayIndexOutOfBoundsException => {}
+    }
+
+    try {
+      workers(i) ! new AddNeighbor(workers(i+1))
+    }
+    catch{
+      case oob: ArrayIndexOutOfBoundsException => {}
+    }
 
   }
 
