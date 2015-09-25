@@ -4,8 +4,8 @@ object Main {
 
   def main(args: Array[String]){
 
-    val numNodes = 64
-    val topology = "line"
+    val numNodes = 3000
+    val topology = "imp3D"
     val algorithm = "push-sum"
 
     val system = ActorSystem("System")

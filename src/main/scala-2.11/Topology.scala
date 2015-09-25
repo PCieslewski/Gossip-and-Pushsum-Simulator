@@ -1,5 +1,8 @@
 import akka.actor.{Props, ActorSystem, ActorRef, Actor}
 
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+
 abstract class Topology(numNodes: Int, man: ActorRef, alg: String) {
 
   val defaultNumMsgs: Int = 1000
@@ -78,7 +81,7 @@ class ThreeGrid(numNodes: Int, man: ActorRef, alg: String) extends Topology(numN
 
   //Instantiate Worker Array for Line
   var workers = new Array[ActorRef](numWorkers)
-  var tempArray = Array.ofDim[ActorRef](root,root,root)
+  var cubeArray = Array.ofDim[ActorRef](root,root,root)
 
   //Instantiate Workers based on Alg Type
   for (i <- workers.indices) {
@@ -94,36 +97,36 @@ class ThreeGrid(numNodes: Int, man: ActorRef, alg: String) extends Topology(numN
 
   //Create a temporary 3 dimensional array
   var i = 0
-  for(x <- tempArray.indices){
-    for(y <- tempArray(x).indices){
-      for(z <- tempArray(x)(y).indices){
-        tempArray(x)(y)(z) = workers(i)
+  for(x <- cubeArray.indices){
+    for(y <- cubeArray(x).indices){
+      for(z <- cubeArray(x)(y).indices){
+        cubeArray(x)(y)(z) = workers(i)
         i+=1
       }
     }
   }
 
   //Iterate through all of the workers and add the surrounding connections
-  for(x <- tempArray.indices){
-    for(y <- tempArray(x).indices){
-      for(z <- tempArray(x)(y).indices){
+  for(x <- cubeArray.indices){
+    for(y <- cubeArray(x).indices){
+      for(z <- cubeArray(x)(y).indices){
 
-        try {tempArray(x)(y)(z) ! new AddNeighbor(tempArray(x+1)(y)(z))}
+        try {cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x+1)(y)(z))}
         catch {case oob: ArrayIndexOutOfBoundsException => {}}
 
-        try {tempArray(x)(y)(z) ! new AddNeighbor(tempArray(x-1)(y)(z))}
+        try {cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x-1)(y)(z))}
         catch {case oob: ArrayIndexOutOfBoundsException => {}}
 
-        try {tempArray(x)(y)(z) ! new AddNeighbor(tempArray(x)(y+1)(z))}
+        try {cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x)(y+1)(z))}
         catch {case oob: ArrayIndexOutOfBoundsException => {}}
 
-        try {tempArray(x)(y)(z) ! new AddNeighbor(tempArray(x)(y-1)(z))}
+        try {cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x)(y-1)(z))}
         catch {case oob: ArrayIndexOutOfBoundsException => {}}
 
-        try {tempArray(x)(y)(z) ! new AddNeighbor(tempArray(x)(y)(z+1))}
+        try {cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x)(y)(z+1))}
         catch {case oob: ArrayIndexOutOfBoundsException => {}}
 
-        try {tempArray(x)(y)(z) ! new AddNeighbor(tempArray(x)(y)(z-1))}
+        try {cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x)(y)(z-1))}
         catch {case oob: ArrayIndexOutOfBoundsException => {}}
 
       }
@@ -132,15 +135,106 @@ class ThreeGrid(numNodes: Int, man: ActorRef, alg: String) extends Topology(numN
 
 }
 
-//class ImpThreeGrid(numNodes: Int, man: ActorRef, alg: String) extends ThreeGrid(numNodes: Int, man: ActorRef, alg: String) {
-//
-//  for(i <- workers.indices){
-//
-//    val workSet = workers.toSet
-//    var randWorker = workers(RNG.getRandNum(numWorkers))
-//
-//
-//
-//  }
-//
-//}
+class ImpThreeGrid(numNodes: Int, man: ActorRef, alg: String) extends Topology(numNodes: Int, man: ActorRef, alg: String) {
+
+  adjustNumWorkers()
+  val root = Math.round(Math.pow(numWorkers,1.0/3.0)).toInt
+
+  //Instantiate Worker Array for Line
+  var workers = new Array[ActorRef](numWorkers)
+  var cubeArray = Array.ofDim[ActorRef](root,root,root)
+
+  var neighborLists = new Array[mutable.ListBuffer[ActorRef]](numWorkers)
+  for(i <- neighborLists.indices){
+    neighborLists(i) = new ListBuffer[ActorRef]
+  }
+
+  //Instantiate Workers based on Alg Type
+  for (i <- workers.indices) {
+
+    if(alg.equals("gossip")) {
+      workers(i) = topSystem.actorOf(Props(new GossipWorker(man, defaultNumMsgs)), name = "Worker"+i.toString)
+    }
+    else{
+      workers(i) = topSystem.actorOf(Props(new PushWorker(man, i, 1)), name = "Worker"+i.toString)
+    }
+
+  }
+
+  //Create a temporary 3 dimensional array
+  var i = 0
+  for(x <- cubeArray.indices){
+    for(y <- cubeArray(x).indices){
+      for(z <- cubeArray(x)(y).indices){
+        cubeArray(x)(y)(z) = workers(i)
+        i+=1
+      }
+    }
+  }
+
+  //Iterate through all of the workers and add the surrounding connections
+  i = 0
+  for(x <- cubeArray.indices){
+    for(y <- cubeArray(x).indices){
+      for(z <- cubeArray(x)(y).indices){
+
+        try {
+          cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x+1)(y)(z))
+          neighborLists(i) += cubeArray(x+1)(y)(z)
+        }
+        catch {case oob: ArrayIndexOutOfBoundsException => {}}
+
+        try {
+          cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x-1)(y)(z))
+          neighborLists(i) += cubeArray(x-1)(y)(z)
+        }
+        catch {case oob: ArrayIndexOutOfBoundsException => {}}
+
+        try {
+          cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x)(y+1)(z))
+          neighborLists(i) += cubeArray(x)(y+1)(z)
+        }
+        catch {case oob: ArrayIndexOutOfBoundsException => {}}
+
+        try {
+          cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x)(y-1)(z))
+          neighborLists(i) += cubeArray(x)(y-1)(z)
+        }
+        catch {case oob: ArrayIndexOutOfBoundsException => {}}
+
+        try {
+          cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x)(y)(z+1))
+          neighborLists(i) += cubeArray(x)(y)(z+1)
+        }
+        catch {case oob: ArrayIndexOutOfBoundsException => {}}
+
+        try {
+          cubeArray(x)(y)(z) ! new AddNeighbor(cubeArray(x)(y)(z-1))
+          neighborLists(i) += cubeArray(x)(y)(z-1)
+        }
+        catch {case oob: ArrayIndexOutOfBoundsException => {}}
+
+        i+=1
+
+      }
+    }
+  }
+
+  for(i <- workers.indices){
+
+    neighborLists(i) += workers(i)
+
+    var randNeighbor = workers(RNG.getRandNum(workers.length))
+
+    while(neighborLists(i).contains(randNeighbor)){
+      randNeighbor = workers(RNG.getRandNum(workers.length))
+    }
+
+    workers(i) ! new AddNeighbor(randNeighbor)
+    neighborLists(i) += randNeighbor
+
+    //println(workers(i).path + " has randomly added " + randNeighbor.path)
+
+  }
+
+}

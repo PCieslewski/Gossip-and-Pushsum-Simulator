@@ -33,6 +33,10 @@ class GossipWorker(manager: ActorRef, numMsgsInit: Int) extends Worker(manager: 
       neighbors(RNG.getRandNum(neighbors.length)) ! new Rumor()
     }
 
+    case Ready() => {
+      sender ! Ready()
+    }
+
   }
 
 }
@@ -80,6 +84,10 @@ class PushWorker(manager: ActorRef, sInit: Double, wInit: Double ) extends Worke
       s = s/2
       w = w/2
       neighbors(RNG.getRandNum(neighbors.length)) ! new PushMsg(s,w)
+    }
+
+    case Ready() => {
+      sender ! Ready()
     }
 
   }
