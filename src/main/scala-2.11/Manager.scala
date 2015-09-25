@@ -1,23 +1,30 @@
-import akka.actor.Actor
+import akka.actor._
 
-class Manager() extends Actor{
+class Manager(numNodes: Int, topString: String, algString: String) extends Actor{
 
-  //TESTING
-  var top: Topology = new Line(100, self, "Gossip")
-
+  var top: Topology = topFactory()
   var time: Long = System.currentTimeMillis()
+
+  val numWorkers = top.workers.length
 
   def receive = {
 
     case Start() => {
       time = System.currentTimeMillis()
-      top.workers(RNG.getRandNum(top.workers.length)) ! Rumor()
+      top.workers(RNG.getRandNum(numWorkers)) ! Start()
     }
 
     case Term() => {
       println(System.currentTimeMillis() - time)
+      System.exit(0)
     }
 
+  }
+
+  def topFactory(): Topology = topString match{
+    case "line" => new Line(numNodes, self, algString)
+    case "full" => new FullNetwork(numNodes, self, algString)
+    case "3D" => new ThreeGrid(numNodes, self, algString)
   }
 
 }

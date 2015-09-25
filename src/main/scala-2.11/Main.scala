@@ -4,10 +4,14 @@ object Main {
 
   def main(args: Array[String]){
 
-    val system = ActorSystem("System")
-    val manager = system.actorOf(Props(new Manager()), name = "Manager")
+    val numNodes = 64
+    val topology = "line"
+    val algorithm = "push-sum"
 
-    manager ! Start()
+    val system = ActorSystem("System")
+    val manager = system.actorOf(Props(new Manager(numNodes, topology, algorithm)), name = "Manager")
+
+    manager ! new Start()
 
   }
 
