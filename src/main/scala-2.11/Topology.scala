@@ -131,3 +131,16 @@ class ThreeGrid(numNodes: Int, man: ActorRef, alg: String) extends Topology(numN
   }
 
 }
+
+//class ImpThreeGrid(numNodes: Int, man: ActorRef, alg: String) extends ThreeGrid(numNodes: Int, man: ActorRef, alg: String) {
+//
+//  for(i <- workers.indices){
+//
+//    val workSet = workers.toSet
+//    var randWorker = workers(RNG.getRandNum(numWorkers))
+//
+//
+//
+//  }
+//
+//}
