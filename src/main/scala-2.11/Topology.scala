@@ -1,16 +1,19 @@
-import akka.actor.{Props, ActorSystem, ActorRef, Actor}
+import akka.actor._
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
+
 object Topology {
 
+  //This is the factory function for creating a topology.
   def factory(man: ActorRef, top: String, alg: String, numNodes: Int): Topology = {
 
     var numWorkers = numNodes
 
     def adjustNumWorkers() {
       numWorkers = Math.pow(Math.ceil(Math.pow(numNodes, 1.0 / 3.0)), 3).toInt
+      println("Number of Workers adjusted to " + numWorkers + ".")
     }
 
     top match {
@@ -39,6 +42,7 @@ object Topology {
     var numWorkers = numNodes
 
     //Create an array of workers for each topology
+    //This automatically calls the factory function for each worker that needs to be created
     var workers: Array[ActorRef] = Array.fill[ActorRef](numNodes)(Worker.factory(man, alg))
 
   }
@@ -81,10 +85,10 @@ object Topology {
 
     val root = Math.round(Math.pow(numWorkers, 1.0 / 3.0)).toInt
 
-    //Create 3d array
+    //Create a 3d array
     var cubeArray = Array.ofDim[ActorRef](root, root, root)
 
-    //Create a temporary 3 dimensional array
+    //Populate the temporary 3 dimensional array
     var i = 0
     for (x <- cubeArray.indices) {
       for (y <- cubeArray(x).indices) {

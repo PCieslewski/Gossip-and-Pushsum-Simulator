@@ -4,7 +4,7 @@ object Main {
 
   def main(args: Array[String]){
 
-    val numNodes = 3000
+    val numNodes = 30000
     val topology = "imp3D"
     val algorithm = "push-sum"
 

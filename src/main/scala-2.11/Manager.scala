@@ -2,7 +2,7 @@ import akka.actor._
 
 class Manager(numNodes: Int, topString: String, algString: String) extends Actor {
 
-  println("Building " + topString + " Topology...")
+  println("Building " + topString + " Topology with " + numNodes + " " + algString + " workers...")
 
   //Call the factory function for Topology.
   var top = Topology.factory(self, topString, algString, numNodes)

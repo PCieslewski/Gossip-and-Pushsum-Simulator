@@ -1,11 +1,19 @@
 import akka.actor._
 import scala.collection.mutable.ArrayBuffer
 
+trait Worker extends Actor {
+  val neighbors: ArrayBuffer[ActorRef] = new ArrayBuffer()
+}
+
 object Worker {
 
+  //Keep track of how many actors have been created, so each time the factory is called,
+  //it can just increment the count by one.
   val workerSystem = ActorSystem("WorkerSystem")
   var workerIndex = -1
 
+  //This is the factory method to create workers. It will return either GossipWorker or PushWorker
+  //both of which extend the Worker trait
   def factory(manager: ActorRef, algorithm: String): ActorRef = {
 
     workerIndex += 1
@@ -28,11 +36,14 @@ object Worker {
 
     def receive = {
 
+      //Add the neighbor that comes in the message
       case AddNeighbor(neighbor: ActorRef) => {
         neighbors += neighbor
       }
 
+      //If you hear a  rumor, decrement the number of messages till termination and resend, otherwise terminate.
       case Rumor() => {
+        //println(self.path + " got a rumor!")
         numMsgsTillTerm = numMsgsTillTerm - 1
         if (numMsgsTillTerm == 0) {
           manager ! Term()
@@ -42,10 +53,12 @@ object Worker {
         }
       }
 
+      //Send a rumor to a neighbor!
       case Start() => {
         neighbors(RNG.getRandNum(neighbors.length)) ! new Rumor()
       }
 
+      //Tell the manager you have processed all of your AddNeighbors so you are ready for simulation
       case Ready() => {
         sender ! Ready()
       }
@@ -68,8 +81,6 @@ object Worker {
 
       case AddNeighbor(neighbor: ActorRef) => {
         neighbors += neighbor
-        //println(self.path + " has added " + neighbor.path)
-        //manager ! new AddedNeighbor()
       }
 
       case PushMsg(sMsg: Double, wMsg: Double) => {
@@ -107,8 +118,4 @@ object Worker {
 
   }
 
-}
-
-trait Worker extends Actor {
-  val neighbors: ArrayBuffer[ActorRef] = new ArrayBuffer()
 }

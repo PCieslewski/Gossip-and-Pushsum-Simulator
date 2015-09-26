@@ -1,5 +1,6 @@
 import akka.actor.ActorRef
 
+//This file contains all of the message definitions.
 sealed trait Msg
 case class Connect() extends Msg
 case class Rumor() extends Msg
