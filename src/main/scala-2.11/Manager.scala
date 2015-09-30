@@ -10,6 +10,7 @@ class Manager(numNodes: Int, topString: String, algString: String) extends Actor
 
   val numWorkers = top.workers.length
   var readyWorkers = 0
+  var workersThatGotMsgs = 0
 
   def receive = {
 
@@ -18,6 +19,10 @@ class Manager(numNodes: Int, topString: String, algString: String) extends Actor
       for (i <- top.workers.indices) {
         top.workers(i) ! new Ready()
       }
+    }
+
+    case GotMsg() => {
+      workersThatGotMsgs += 1
     }
 
     //Record time and send the start signal to a random actor.
@@ -29,8 +34,11 @@ class Manager(numNodes: Int, topString: String, algString: String) extends Actor
 
     //Termination. Record Elapsed Time.
     case Term() => {
+      println("Workers that got the msg : " + workersThatGotMsgs)
       println("Elapsed Time : " + (System.currentTimeMillis() - time) + " ms.")
-      System.exit(0)
+      //System.exit(0)
+      sys.exit(0)
+      //Main.self ! DoneSystem()
     }
 
     //When all actors are ready, start timing the simulation

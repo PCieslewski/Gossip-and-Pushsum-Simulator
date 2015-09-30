@@ -9,3 +9,7 @@ resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/release
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % "2.3.12"
 )
+
+fork in run := true
+//connectInput in run := true
+

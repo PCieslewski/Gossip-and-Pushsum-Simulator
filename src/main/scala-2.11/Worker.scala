@@ -3,13 +3,14 @@ import scala.collection.mutable.ArrayBuffer
 
 trait Worker extends Actor {
   val neighbors: ArrayBuffer[ActorRef] = new ArrayBuffer()
+  var receivedMsg: Boolean = false
 }
 
 object Worker {
 
   //Keep track of how many actors have been created, so each time the factory is called,
   //it can just increment the count by one.
-  val workerSystem = ActorSystem("WorkerSystem")
+  //val system = ActorSystem("WorkerSystem")
   var workerIndex = -1
 
   //This is the factory method to create workers. It will return either GossipWorker or PushWorker
@@ -20,10 +21,10 @@ object Worker {
 
     algorithm match {
       case "gossip" => {
-        workerSystem.actorOf(Props(new GossipWorker(manager)), name = "Worker" + workerIndex.toString)
+        MySystem.system.actorOf(Props(new GossipWorker(manager)), name = "Worker" + workerIndex.toString)
       }
       case "push-sum" => {
-        workerSystem.actorOf(Props(new PushWorker(manager, workerIndex)), name = "Worker" + workerIndex.toString)
+        MySystem.system.actorOf(Props(new PushWorker(manager, workerIndex)), name = "Worker" + workerIndex.toString)
       }
     }
 
@@ -32,7 +33,7 @@ object Worker {
   private class GossipWorker(manager: ActorRef) extends Worker {
 
     //Number of messages till the gossip algorithm has reached termination criteria.
-    var numMsgsTillTerm = 10
+    var numMsgsTillTerm = 100
 
     def receive = {
 
@@ -43,7 +44,12 @@ object Worker {
 
       //If you hear a  rumor, decrement the number of messages till termination and resend, otherwise terminate.
       case Rumor() => {
-        //println(self.path + " got a rumor!")
+
+        if(!receivedMsg){
+          receivedMsg = true
+          manager ! GotMsg()
+        }
+
         numMsgsTillTerm = numMsgsTillTerm - 1
         if (numMsgsTillTerm == 0) {
           manager ! Term()
@@ -84,6 +90,12 @@ object Worker {
       }
 
       case PushMsg(sMsg: Double, wMsg: Double) => {
+
+        if(!receivedMsg){
+          receivedMsg = true
+          manager ! GotMsg()
+        }
+
         s = s + sMsg
         w = w + wMsg
 

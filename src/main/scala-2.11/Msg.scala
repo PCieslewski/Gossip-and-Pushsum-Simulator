@@ -10,3 +10,5 @@ case class AddNeighbor(neighbor: ActorRef) extends Msg
 case class PushMsg(sMsg: Double, wMsg: Double) extends Msg
 case class Ready() extends Msg
 case class StartSimulation() extends Msg
+case class GotMsg() extends Msg
+case class DoneSystem() extends Msg
