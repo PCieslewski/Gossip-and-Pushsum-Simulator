@@ -11,4 +11,6 @@ case class PushMsg(sMsg: Double, wMsg: Double) extends Msg
 case class Ready() extends Msg
 case class StartSimulation() extends Msg
 case class GotMsg() extends Msg
-case class DoneSystem() extends Msg
+case class Reply() extends Msg
+case class Heartbeat() extends Msg
+case class CheckHeartbeat() extends Msg

@@ -1,9 +1,12 @@
 import akka.actor._
+import akka.dispatch.{UnboundedPriorityMailbox, PriorityGenerator}
+import com.typesafe.config.Config
 import scala.collection.mutable.ArrayBuffer
 
 trait Worker extends Actor {
   val neighbors: ArrayBuffer[ActorRef] = new ArrayBuffer()
   var receivedMsg: Boolean = false
+  var alive: Boolean = false
 }
 
 object Worker {
@@ -12,6 +15,8 @@ object Worker {
   //it can just increment the count by one.
   //val system = ActorSystem("WorkerSystem")
   var workerIndex = -1
+
+  var workersAlive = 0
 
   //This is the factory method to create workers. It will return either GossipWorker or PushWorker
   //both of which extend the Worker trait
@@ -24,7 +29,7 @@ object Worker {
         MySystem.system.actorOf(Props(new GossipWorker(manager)), name = "Worker" + workerIndex.toString)
       }
       case "push-sum" => {
-        MySystem.system.actorOf(Props(new PushWorker(manager, workerIndex)), name = "Worker" + workerIndex.toString)
+        MySystem.system.actorOf(Props(new PushWorker(manager, workerIndex)).withDispatcher("prio-dispatcher-push"), name = "Worker" + workerIndex.toString)
       }
     }
 
@@ -33,7 +38,7 @@ object Worker {
   private class GossipWorker(manager: ActorRef) extends Worker {
 
     //Number of messages till the gossip algorithm has reached termination criteria.
-    var numMsgsTillTerm = 100
+    var numMsgsTillTerm = 10
 
     def receive = {
 
@@ -45,22 +50,40 @@ object Worker {
       //If you hear a  rumor, decrement the number of messages till termination and resend, otherwise terminate.
       case Rumor() => {
 
+        //If this is the first time hearing a rumor, set status to alive and note that you got a msg.
         if(!receivedMsg){
           receivedMsg = true
+          alive = true
           manager ! GotMsg()
         }
 
-        numMsgsTillTerm = numMsgsTillTerm - 1
-        if (numMsgsTillTerm == 0) {
-          manager ! Term()
+        //If youre alive, process the rumor.
+        if(alive) {
+          manager ! Heartbeat()
+          numMsgsTillTerm = numMsgsTillTerm - 1
+          if (numMsgsTillTerm == 0) {
+            alive = false
+          }
+          else {
+            neighbors(RNG.getRandNum(neighbors.length)) ! new Rumor()
+          }
         }
-        else {
+
+        sender ! Reply()
+
+      }
+
+      case Reply() => {
+        if(alive) {
           neighbors(RNG.getRandNum(neighbors.length)) ! new Rumor()
         }
       }
 
       //Send a rumor to a neighbor!
       case Start() => {
+        receivedMsg = true
+        alive = true
+        manager ! GotMsg()
         neighbors(RNG.getRandNum(neighbors.length)) ! new Rumor()
       }
 
@@ -93,37 +116,84 @@ object Worker {
 
         if(!receivedMsg){
           receivedMsg = true
+          alive = true
+          workersAlive += 1
           manager ! GotMsg()
         }
 
-        s = s + sMsg
-        w = w + wMsg
+        if(alive){
 
-        ratioPrev = ratio
-        ratio = s / w
+          //println("Normal Process")
+          manager ! Heartbeat()
+          //println(ratio)
 
-        if (Math.abs(ratio - ratioPrev) < "10E-10".toDouble) termCount += 1
-        else termCount = 0
+          s = s + sMsg
+          w = w + wMsg
 
-        if (termCount == 3) {
-          manager ! new Term()
+          ratioPrev = ratio
+          ratio = s / w
+
+          //println(Math.abs(ratio-ratioPrev))
+
+          if (Math.abs(ratio - ratioPrev) < "10E-4".toDouble) termCount += 1
+          else termCount = 0
+
+          if (termCount == 3) {
+            alive = false
+            //manager ! Term()
+            workersAlive -= 1
+            //println(workersAlive)
+            //println("dead")
+          }
+          else {
+            s = s / 2
+            w = w / 2
+            val n = neighbors(RNG.getRandNum(neighbors.length))
+            n ! new PushMsg(s, w)
+          }
+
         }
-        else {
-          s = s / 2
-          w = w / 2
-          neighbors(RNG.getRandNum(neighbors.length)) ! new PushMsg(s, w)
+        else{
+          //sender ! PushMsg(sMsg,wMsg)
         }
+
+        //Regardless, always send a reply back.
+        sender ! Reply()
 
       }
 
       case Start() => {
+
+        receivedMsg = true
+        alive = true
+        workersAlive += 1
+        manager ! GotMsg()
+
         s = s / 2
         w = w / 2
-        neighbors(RNG.getRandNum(neighbors.length)) ! new PushMsg(s, w)
+        val n = neighbors(RNG.getRandNum(neighbors.length))
+        n ! new PushMsg(s, w)
+
       }
 
       case Ready() => {
         sender ! Ready()
+      }
+
+      case Reply() => {
+
+        if(alive) {
+          //println("Reply Process")
+          s = s / 2
+          w = w / 2
+          val n = neighbors(RNG.getRandNum(neighbors.length))
+          //neighbors(RNG.getRandNum(neighbors.length)) ! new PushMsg(s, w)
+          n ! new PushMsg(s, w)
+        }
+        else{
+          //println("test")
+        }
+
       }
 
     }
@@ -131,3 +201,12 @@ object Worker {
   }
 
 }
+
+class PrioPushMailbox(settings: ActorSystem.Settings, config: Config) extends UnboundedPriorityMailbox(
+  PriorityGenerator {
+    case AddNeighbor => 0
+    case Ready => 1
+    case PushMsg(sMsg:Double, wMsg: Double) => 2
+    case Reply => 3
+    case _ => 4
+  })

@@ -1,4 +1,5 @@
 import akka.actor._
+import scala.concurrent.duration._
 
 object Main{
 
@@ -8,11 +9,11 @@ object Main{
     val topology  = args(1)
     val algorithm = args(2)
 
-    //val numNodes = 3000
-    //val topology = "imp3D"
+    //val numNodes = 27000
+    //val topology = "line"
     //val algorithm = "push-sum"
 
-    val manager = MySystem.system.actorOf(Props(new Manager(numNodes, topology, algorithm)), name = "Manager")
+    val manager = MySystem.system.actorOf(Props(new Manager(numNodes, topology, algorithm)).withDispatcher("prio-dispatcher-man"), name = "Manager")
     manager ! new Start()
 
   }
